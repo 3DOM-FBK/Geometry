@@ -156,10 +156,10 @@ class Camera:
                 _ (np.matrix)   :   3 x 3 matrix in the opencv format
         '''
         if not self.__intrinsics['cx'] or not self.__intrinsics['cy']:
-            logger.critical('C[{}]: invalid camera center'.format(self.__id))
+            logger.critical('Camera {} has no camera center'.format(self.__id))
             exit(1)
         if not self.__intrinsics['f']:
-            logger.critical('C[{}]: invalid focal'.format(self.__id))
+            logger.critical('Camera {} has no focal'.format(self.__id))
             exit(1)
 
         return np.matrix([

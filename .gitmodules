@@ -1,0 +1,3 @@
+[submodule "lib"]
+	path = lib
+	url = https://gitlab.fbk.eu/atorresani/fileparsers.git

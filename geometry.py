@@ -1,6 +1,11 @@
 import os
 import logging
 import numpy as np 
+from sys import path
+
+# Add submodules
+path.insert(0, os.path.join(os.path.dirname(__file__), 'lib/outReader/python/'))
+path.insert(0, os.path.join(os.path.dirname(__file__), 'lib/nvmReader/python/'))
 
 from camera import Camera
 from point3D import Point3D

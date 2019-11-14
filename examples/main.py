@@ -1,5 +1,10 @@
+import os
 import logging
+from sys import path
 from argparse import ArgumentParser
+
+# Path to geometry library
+path.insert(0, '../')
 
 from geometry import Geometry
 from geometrySettings import GeometrySettings
@@ -18,7 +23,7 @@ def main():
     else:
         log_level = logging.INFO
     logging.basicConfig(format='%(levelname)-6s %(asctime)s:%(msecs)d [%(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d:%H:%M:%S', filename="log.txt", filemode='w', level=log_level)
+        datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output," log.txt"), filemode='w', level=log_level)
 
     geometry = Geometry()                                                                                                                                                                                 
     geometry.load_reconstruction(args.input)                                                                                                                                                            
