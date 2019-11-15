@@ -102,7 +102,7 @@ class Geometry:
 
             logger.debug('Updated intrinsics: {}'.format(self.__cameras[cam_id]))
         logger.info('Loaded full intrinsics of {} cameras'.format(len(file_lines)))
-       
+
     def __load_out(self, filepath):
         ''' Load the content of a .out file
 
@@ -201,6 +201,21 @@ class Geometry:
 
         return observations
 
+    def import_feature_points3D(self, name, features):
+        ''' Import an externally-computed feature for the given points3D.
+
+            Attributes:
+                name (string)           :   name of the feature
+                features ({int -> _})   :   values of the features. {point3D_id -> feature_value}
+        '''
+        if len(features) == 0:
+            logger.warning('Empty feature dictionary is passed')
+            return      
+
+        for point3D_id, value in features.items():
+            self.__points3D[point3D_id].set_feature(name, value)
+        logger.info('Imported feature {} for {} points3D'.format(name, len(features)))
+
 
     ''' ************************************************ Getters ************************************************ '''
     def get_point2D(self, p2D_id):
@@ -236,7 +251,58 @@ class Geometry:
         else:
             logger.error('Camera with id {} does not exist'.format(cam_id)) 
 
- 
+
+    ''' ************************************************ Modifiers ************************************************ '''
+    def remove_points3D(self, p3D_ids):
+        ''' Remove the given points3D from the reconstruction.
+
+            Attributes:
+                p3D_id (list(int))    :   ids of the point3D to remove
+        '''
+        num_deleted_points = {'3D' : 0, '2D' : 0}
+        for p3D_id in p3D_ids:
+            if p3D_id not in self.__points3D:
+                logger.warning('Attempt to delete a non existing point3D {}'.format(p3D_id))
+                continue
+
+            p3D = self.__points3D[p3D_id]
+            
+            cameras_seing_p3D = p3D.get_cameras_seing_me()
+            for cam_id in cameras_seing_p3D:                                                # Remove p3D_id from the observing cameras
+                self.__cameras[cam_id].remove_point3D(p3D_id)
+                
+            p3D_points2D = [p3D.get_observation(cam_id) for cam_id in cameras_seing_p3D]    # Delete the corresponding points2D
+            for p2D_id in p3D_points2D:
+                try:
+                    del self.__points2D[p2D_id]
+                    num_deleted_points['2D'] += 1
+                except KeyError:
+                    logger.warning('Attempt to delete a non existing point2D {}'.format(p2D_id))
+            
+            del self.__points3D[p3D_id]
+            num_deleted_points['3D'] += 1
+        
+        logger.info('Deleted {} 3D and {} 2D points'.format(num_deleted_points['3D'], num_deleted_points['2D']))
+
+    def remove_point2D(self, p2D_ids):
+        ''' Remove the given points2D from the reconstruction. Not yet supported.
+            Missing index from p3D_id to cam_id (observations).
+            The removal would be now very slow (checking the VALUES of p3D.observations() (p2D_id) instead
+            of the KEYS(cam_id)) 
+
+            Attributes:
+                p2D_ids (list(int)) : ids of the point2D to remove
+        '''
+        logger.error('Method not yet supported')
+
+        '''for p2D_id in p2D_ids:
+            p2D = self.__points2D[p2D_id]
+            
+            p2D_p3D = self.__points3D[p2D.get_point3D]
+            p2D_p3D.remove(observation(cam_id))         # cam_id cannot be efficently retrieved   
+        '''
+
+
     ''' ************************************************ Geometric ************************************************ '''
     def project_p3D(self, p3D_id, undistort=False):
         ''' Get the projections of a point3D in all the observing cameras
@@ -377,7 +443,7 @@ class Geometry:
             logger.debug('Max intersection angle for p3D {} is {}'.format(p3D_id, max_angle)) 
 
         logger.info('Maximum intersection angles computed')
-
+  
 
     ''' ************************************************ Export ************************************************ '''
     def export_points3D_coordinates_and_features(self, folder):
@@ -403,23 +469,5 @@ class Geometry:
                         p3D.get_max_intersection_angle())
                     )
         except IOError:
-            logger.error('Cannot create file in folder "{}"'.format(folder))
-
-        
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-            
-     
-                                  
+            logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))
+            exit(1)

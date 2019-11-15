@@ -24,7 +24,7 @@ class Point2D:
 
     ''' ************************************************ Setters ************************************************ '''
     def set_coordintes(self, xy):
-        ''' Set the image coordinates of the point2D 
+        ''' Set the image coordinates of the point2D.
 
             Attributes:
                 xy (np.matrix(float))   :   image coordinates (x,y)  
@@ -35,7 +35,7 @@ class Point2D:
         self.__xy = xy     
 
     def set_keypoint_index(self, cam_id, kp_index):
-        ''' Set the keypoint index of the point2D in the correspondig camera
+        ''' Set the keypoint index of the point2D in the correspondig camera.
 
             Attributes:
                 cam_id (int)    :   camera id in which the point2D was extracted
@@ -60,7 +60,7 @@ class Point2D:
 
     ''' ************************************************ Getters ************************************************ '''
     def get_coordinates(self, homogenous = False):
-        ''' Return the image coordinates (x,y)
+        ''' Return the image coordinates (x,y).
 
             Attributes:
                 homogenous (bool)   :   return coordinates in homogeneus coordinates (optional)
@@ -69,3 +69,14 @@ class Point2D:
                 _ (np.matrix)    :   2D coordinates. (2,1) or (3,1) (if homogeneous)
         '''
         return np.copy(self.__xy)
+    
+    def get_point3D(self):
+        ''' Return the corresponding point3D id.
+
+            Return:
+                p3D_id (int)    :   id of the corresponding point3D
+        '''
+        if self.__p3D_id == None or self.__p3D_id == -1:
+            logger.critical('Point2D {} has not point3D'.format(self.__id))
+            exit(1)
+        return self.__p3D_id

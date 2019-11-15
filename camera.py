@@ -227,12 +227,25 @@ class Camera:
         if format == GeometrySettings.TranslationVectorType.BUNDLER_OUT:
             return np.copy(self.__t)                                                        # World coordinate system wrt camera center
         elif format == GeometrySettings.TranslationVectorType.BLOCK_EXCHANGE:
-            t_be = (-self.__R).T.dot(self.__t)                                              # Camera center wrt the world coordinate system
+            t_be = np.negative(self.__R).T.dot(self.__t)                                            # Camera center wrt the world coordinate system
             return t_be
         else:
             logger.critical('{} is an invalid translation vector format'.format(format))
             exit(1)
 
-    
+
+    ''' ************************************************ Modifiers ************************************************ '''
+    def remove_point3D(self, p3D_id):
+        ''' Removes a point3D from this camera
+
+            Attributes:
+                p3D_id (int)    : id of the point3D to remove
+        '''
+        try:
+            self.__points3D.remove(p3D_id)
+        except ValueError:
+            logger.critical('Point3D {} not in camera {}'.format(p3D_id, self.__id))
+            exit(0)
+
 
     

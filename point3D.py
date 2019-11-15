@@ -39,7 +39,7 @@ class Point3D:
             logger.critical('{} is an invalid point3D coordinate shape'.format(xyz.shape))
             exit(1)
         self.__xyz = xyz
-    
+
     def set_color_rgb(self, rgb):
         ''' Set the point3D color in rgb
 
@@ -50,9 +50,9 @@ class Point3D:
             logger.critical('{} is an invalid point3D rgb shape'.format(rgb.shape))
             exit(1)
         self.__rgb == rgb
-    
+
     def set_observation(self, cam_id, p2D_id):
-        ''' Set observation (camera and corresponding point2D)
+        ''' Set observation (camera and corresponding point2D).
 
             Attributes:
                 cam_id (int)    :   camera id
@@ -63,20 +63,20 @@ class Point3D:
         if p2D_id < 0:
             logger.warning('Negative id for point2D id: {}'.format(p2D_id)) 
         self.__observations[cam_id] = p2D_id
-    
+
     def set_mean_reprojection_error(self, reprojection_error):
-        ''' Set the mean reprojection error of the cameras seing this point3D
+        ''' Set the mean reprojection error of the cameras seing this point3D.
 
             Attributes:
                 re (float)  : mean reprojection error
         '''
         if reprojection_error < 0:
-            logger.warning('Negative reprojection error {} for p3D {}'.format(re, self.__id))
+            logger.warning('Point3D {} has negative reprojection error {}'.format(self.__id, reprojection_error))
         
         self.__features['reprojection_error'] = reprojection_error
-    
+
     def set_max_intersection_angle(self, max_angle):
-        ''' Set the maximum intersection angle of the cameras seing this point3D
+        ''' Set the maximum intersection angle of the cameras seing this point3D.
 
             Attributes:
                 max_angle (float)   : maximum intersection angle
@@ -85,6 +85,15 @@ class Point3D:
             logger.warning('Negative maximum intersection angle {} for p3D {}'.format(max_angle, self.__id))
   
         self.__features['max_angle'] = max_angle
+    
+    def set_feature(self, name, value):
+        ''' Set a generic feature of the point3D.
+
+            Attributes:
+                name (string)       :   name of the feature
+                value (_)           :   value of the feature
+        '''
+        self.__features[name] = value
 
 
     ''' ************************************************ Getters ************************************************ '''
@@ -160,7 +169,31 @@ class Point3D:
             return
         
         return self.__features['max_angle']
+    
+    def get_feature(self, feature):
+        ''' Get a generic feature of the point3D.
 
+            Attributes:
+                feature (string)    :   name of the feature
+        '''
+        if not feature in self.__features.keys():
+            logger.critical('Point3D {} has no feature {}'.format(self.__id, feature))
+            exit(1)
+        
+        return self.__features['feature']
+
+
+    ''' ************************************************ Modifiers ************************************************ '''
+    def remove_observation(self, cam_id):
+        ''' Remove an observation ({cam_id -> point2D->id})
+
+            Attributes:
+                cam_id (int)    : id of the camera (key of the observation)
+        '''       
+        try:
+            del self.__observations[cam_id]
+        except KeyError:
+            logger.warning('Point3D {} is not observed in camera {}'.format(self.__id, cam_id))
 
     #def set_point3D_type(self, cameras):
         ''' Sets the point type (TER, UAV, TER-UAV) based on the type of cameras observing this point.
