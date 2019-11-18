@@ -346,12 +346,12 @@ class Geometry:
 
         return projections_of_p3D
    
-    def undistort_p3D(self, p3D_img_coordinates, cam_id):
+    def undistort_p3D(self, p3D_xy, cam_id):
         ''' Apply radial and tangential correction to the coordinates of the point3D.
 
             Attributes:
-                p3D_img_coordinates (np.matrix)     :   image (distorted) coordinates of the point3D. Homogeneous vector 3 x 1 
-                cam_id (int)                        :   id of the camera seing p3D         
+                p3D_xy (np.matrix)      :   image (distorted) coordinates of the point3D. Homogeneous vector 3 x 1 
+                cam_id (int)            :   id of the camera seing p3D         
 
             Return:
                 p3D_iu (np.matrix)  :   undistorted coordinates
@@ -359,18 +359,18 @@ class Geometry:
         if cam_id not in self.__cameras:
             logger.critical('Camera with id {} does not exist'.format(cam_id))
             exit(1)
-        p3D_id = p3D_img_coordinates                                                    # Distorted image coordinates (alias)
-        p3D_iu = np.matrix([[0.0], [0.0], [1.0]])                                       # Undistorted image coordinates
+        
+        p3D_xy_und = np.matrix([[0.0], [0.0], [1.0]])                                   # Undistorted image coordinates
         
         k1, k2, k3 = self.__cameras[cam_id].get_radial_distortion_params()              # Radial distortion parameters
         p1, p2 = self.__cameras[cam_id].get_tangential_distortion_params()              # Tangential distortion parameters
-        r2 = pow(p3D_id[0], 2) + pow(p3D_id[1], 2)                                      # R2 factor
+        r2 = pow(p3D_xy[0], 2) + pow(p3D_xy[1], 2)                                      # R2 factor
 
-        p3D_iu[0] = (p3D_id[0] * (1 + (k1 * r2) + (k2 * pow(r2,2)) + (k3 * pow(r2, 3)))) + ((2 * p1 * p3D_id[0] * p3D_id[1]) + (p2 * (r2 + (2 * pow(p3D_id[0], 2)))))
-        p3D_iu[1] = (p3D_id[1] * (1 + (k1 * r2) + (k2 * pow(r2,2)) + (k3 * pow(r2, 3)))) + ((p1 * (r2 + (2 * pow(p3D_id[1], 2)))) + (2 * p2 * p3D_id[0] * p3D_id[1]))
-        logger.debug('{} undistorted to {}'.format(p3D_id.tolist(), p3D_iu.tolist()))
+        p3D_xy_und[0] = (p3D_xy[0] * (1 + (k1 * r2) + (k2 * pow(r2,2)) + (k3 * pow(r2, 3)))) + ((2 * p1 * p3D_xy[0] * p3D_xy[1]) + (p2 * (r2 + (2 * pow(p3D_xy[0], 2)))))
+        p3D_xy_und[1] = (p3D_xy[1] * (1 + (k1 * r2) + (k2 * pow(r2,2)) + (k3 * pow(r2, 3)))) + ((p1 * (r2 + (2 * pow(p3D_xy[1], 2)))) + (2 * p2 * p3D_xy[0] * p3D_xy[1]))
+        logger.debug('{} undistorted to {}'.format(p3D_xy.tolist(), p3D_xy_und.tolist()))
         
-        return p3D_iu
+        return p3D_xy_und
 
 
     ''' ************************************************ Features ************************************************ '''
@@ -378,8 +378,8 @@ class Geometry:
         ''' Compute the mean reprojection error of all the points3D
         '''
         if len(self.__points3D) == 0:
-            logger.warning('No points3D, no reprojection errors')
-            return
+            logger.critical('No points3D, no reprojection errors')
+            exit(1)
 
         for p3D_id, p3D in self.__points3D.items():
             p3D_projections = self.project_p3D(p3D_id, undistort=True)
@@ -400,20 +400,20 @@ class Geometry:
                 logger.debug('Reprojection error of P3D {} on cam {}: {}'.format(p3D_id, cam_id, err))
             
             p3D_mean_reprojection_error = p3D_mean_reprojection_error / len(p3D_projections)
-            self.__points3D[p3D_id].set_mean_reprojection_error(p3D_mean_reprojection_error)
+            self.__points3D[p3D_id].set_feature('mean_reprojection_error', p3D_mean_reprojection_error)
             logger.debug('Mean reprojection error of P3D {} is {}'.format(p3D_id, p3D_mean_reprojection_error))
         
         logger.info('Reprojection errors computed')
 
-    def compute_max_intersection_angles(self, use_degree=False):
+    def compute_max_intersection_angle(self, in_degree=False):
         ''' Compute the maximum intersection angle of all the points3D.
 
             Attributes:
-                use_degree (bool)   :   save angles in degrees instead of radiants
+                in_degree (bool)   :   save angles in degrees instead of radiants
         '''
         if len(self.__points3D) == 0:
-            logger.warning('No points3D, no maximum intersection angles')
-            return
+            logger.critical('No points3D, no maximum intersection angles')
+            exit(1)
     
         for p3D_id, p3D in self.__points3D.items():
             cams_seing_p3D = p3D.get_cameras_seing_me()
@@ -421,7 +421,7 @@ class Geometry:
             p3D_cams_distances = []
             for cam_id in cams_seing_p3D:           # Compute distance vector between p3D and the cameras seing it
                 camera = self.__cameras[cam_id]
-                camera_tranlsation = camera.get_translation_vector(GeometrySettings.TranslationVectorType.BUNDLER_OUT)
+                camera_tranlsation = camera.get_translation_vector(GeometrySettings.TranslationVectorType.BUNDLER_OUT)      # TODO: check this, probably is wrong.
                 p3D_cams_distances.append(p3D.get_coordinates() - camera_tranlsation)
    
             arcoss_angles = []
@@ -434,19 +434,83 @@ class Geometry:
 
                     dist_1_dist_2_cos_angle = (np.dot(dist_1_unitized.T, dist_2_unitized)) / (np.linalg.norm(dist_1_unitized)) * (np.linalg.norm(dist_1_unitized))
                     dist_1_dist_2_arcoss_angle = np.arccos(np.asscalar(dist_1_dist_2_cos_angle))
-                    if use_degree:
+                    if in_degree:
                         dist_1_dist_2_arcoss_angle = np.degrees(dist_1_dist_2_arcoss_angle)
                     arcoss_angles.append(dist_1_dist_2_arcoss_angle)
             
             max_angle = max(arcoss_angles)
-            self.__points3D[p3D_id].set_max_intersection_angle(max_angle)
+            self.__points3D[p3D_id].set_feature('max_intersec_angle', max_angle)
             logger.debug('Max intersection angle for p3D {} is {}'.format(p3D_id, max_angle)) 
 
         logger.info('Maximum intersection angles computed')
-  
+    
+    def compute_multiplicity(self):
+        ''' Compute the multiplicity (number of cameras seing the point) of all the points3D.
+        '''
+        if len(self.__points3D) == 0:
+            logger.critical('No points3D, no multiplicities')
+            exit(1)
+        
+        for _, p3D in self.__points3D.items():
+            p3D.set_feature('multiplicity', len(p3D.get_cameras_seing_me()))\
+        
+        logger.info('Multiplicities computed')
+
+
+    ''' ************************************************ Statistic ************************************************ '''
+    def feature_scaling_normalisation(self, value, min, max):
+        ''' Normalise a given value between 0 and 1 using the feature scaling method
+        
+        Args:
+            value (float)   :   value to normalise.
+            min (float)     :   minimum value in the data.
+            max (float)     :   maximum value in the data.
+        
+        Return:
+            result (float)  :   Normalised value 
+        '''
+
+        result = ((((value - min) * (1 - 0)) / float(max - min)))  
+        return result
+
+    def logistic_normalisation(self, value, mean, std):
+        ''' Normalise a value between 0 and 1 using a logistic function (Mauro version)
+
+        Args:
+            value (float)   :   value to normalise.
+            mean (float)    :   mean of the data
+            std (float)     :   standard deviation of the data 
+        '''
+        x = (2*(value - mean)) / std
+        return 1 / (1 + np.exp(-x))
+    
+    def compute_feature_statistics(self, features, ids_to_exclude=None):
+        ''' Compute feature statistics of all the points3D or of a specif set (when ids_to_exclude is specified)
+
+            Attributes:
+                features [string]               :   features to consider
+                ids_to_exclude ([int])          :   ids of points3D to exclude
+            
+            Return:
+                feature_statistics ({string ->  
+                    {string -> float}})         :   min, max, mean, median and std of each statistics 
+                                                    {'feature' -> {'stat' -> float}} where 'stat' is 
+                                                    ['min', 'max', 'mean', 'median', 'std']          
+        '''
+        feature_statistics = {}
+        if ids_to_exclude:
+            p3Ds_to_consider = [p3D for p3D_id, p3D in self.__points3D.items() if p3D_id not in ids_to_exclude]
+        else:
+            p3Ds_to_consider = [p3D for _, p3D in self.__points3D.items()]
+
+        for feature in features:
+            if feature_statistics[feature] == None:
+                feature_statistics[feature] = {}
+            #feature_statistics[feature]['min'] = np.min([p.features])
+
 
     ''' ************************************************ Export ************************************************ '''
-    def export_points3D_coordinates_and_features(self, folder):
+    def export_points3D_xyz_and_features(self, folder):
         ''' Export points3D coordinates and features in a .txt file. 
             Format <p3D_id> <x> <y> <z> <reprojection_error> <multiplicity> <max_intersection_angle>
 
@@ -464,9 +528,9 @@ class Geometry:
                 for p3D_id, p3D in self.__points3D.items():
                     f_out.write('{} {} {} {} {}\n'.format(p3D_id, 
                         p3D.get_coordinates_as_string(), 
-                        p3D.get_mean_reprojection_error(),
-                        len(p3D.get_cameras_seing_me()),
-                        p3D.get_max_intersection_angle())
+                        p3D.get_feature('mean_reprojection_error'),
+                        p3D.get_feature('multiplicity'),
+                        p3D.get_feature('max_intersec_angle'))
                     )
         except IOError:
             logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))

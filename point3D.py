@@ -14,8 +14,8 @@ class Point3D:
     Attributes:
         xyz (numpy matrix)              :   x,y and z coordinates
         rgb (numpy array)               :   red, green and blue
-        observations ({})               :   observations of the this point3D in the cameras. Key: cam_id, value: Point2D id
-        features({})                    :   dictionary of the features {'reprojection_error' : float, 'max_angle' : float}
+        observations ({int->int})       :   observations of the this point3D in the cameras {cam_id -> p2D_id}
+        features({string->_})           :   dictionary of the features {'feature'}
     '''
     def __init__(self, id):
         self.__id = id
@@ -64,28 +64,6 @@ class Point3D:
             logger.warning('Negative id for point2D id: {}'.format(p2D_id)) 
         self.__observations[cam_id] = p2D_id
 
-    def set_mean_reprojection_error(self, reprojection_error):
-        ''' Set the mean reprojection error of the cameras seing this point3D.
-
-            Attributes:
-                re (float)  : mean reprojection error
-        '''
-        if reprojection_error < 0:
-            logger.warning('Point3D {} has negative reprojection error {}'.format(self.__id, reprojection_error))
-        
-        self.__features['reprojection_error'] = reprojection_error
-
-    def set_max_intersection_angle(self, max_angle):
-        ''' Set the maximum intersection angle of the cameras seing this point3D.
-
-            Attributes:
-                max_angle (float)   : maximum intersection angle
-        '''
-        if max_angle < 0:
-            logger.warning('Negative maximum intersection angle {} for p3D {}'.format(max_angle, self.__id))
-  
-        self.__features['max_angle'] = max_angle
-    
     def set_feature(self, name, value):
         ''' Set a generic feature of the point3D.
 
@@ -110,7 +88,7 @@ class Point3D:
             return np.copy(np.append(self.__xyz, [[1]], axis=0))
         else:
             return np.copy(self.__xyz)
-    
+
     def get_coordinates_as_string(self):
         ''' Return the 3D cordinates as a string "x y z"
 
@@ -131,7 +109,7 @@ class Point3D:
             return None
         
         return [cam_id for cam_id,_ in self.__observations.items()]
-        
+ 
     def get_observation (self, cam_id):
         ''' Return the id of the point2D observed in the given camera.
 
@@ -146,30 +124,6 @@ class Point3D:
         
         return self.__observations[cam_id] 
 
-    def get_mean_reprojection_error(self):
-        ''' Return the mean reprojection error
-
-            Return:
-                _ (float)   : mean reprojection error
-        '''
-        if 'reprojection_error' not in self.__features or not self.__features['reprojection_error']:
-            logger.error('No reprojection error value for point3D {}'.format(self.__id))
-            return
-        
-        return self.__features['reprojection_error']
-    
-    def get_max_intersection_angle(self):
-        ''' Return the max intersection angle
-
-            Return:
-                _ (float)   : max intersection angle
-        '''
-        if 'max_angle' not in self.__features or not self.__features['max_angle']:
-            logger.error('No max intersection angle value for point3D {}'.format(self.__id))
-            return
-        
-        return self.__features['max_angle']
-    
     def get_feature(self, feature):
         ''' Get a generic feature of the point3D.
 
@@ -180,7 +134,7 @@ class Point3D:
             logger.critical('Point3D {} has no feature {}'.format(self.__id, feature))
             exit(1)
         
-        return self.__features['feature']
+        return self.__features[feature]
 
 
     ''' ************************************************ Modifiers ************************************************ '''
