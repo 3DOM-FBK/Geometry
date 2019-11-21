@@ -148,26 +148,3 @@ class Point3D:
             del self.__observations[cam_id]
         except KeyError:
             logger.warning('Point3D {} is not observed in camera {}'.format(self.__id, cam_id))
-
-    #def set_point3D_type(self, cameras):
-        ''' Sets the point type (TER, UAV, TER-UAV) based on the type of cameras observing this point.
-
-            Attributes:
-                cameras (dict[int->Camera])     : Dictionary containing all the cameras
-        '''
-        '''observations = [0] * 2               # observations[0] are TER observations, observations[1] are the UAV ones
-        
-        # Fill the observations 
-        for camera_id, _ in self.__observations.items():
-            if cameras[camera_id].type == Camera.CameraType.TER:
-                observations[0] += 1
-            elif cameras[camera_id].type == Camera.CameraType.UAV:
-                 observations[1] += 1
-        
-        # Use the observations to decide the point3D type
-        if observations[0] > 0 and observations[1] > 0:
-            self.type = PointType.TER_UAV
-        elif observations[0] > 0 and observations[1] == 0:
-            self.type = PointType.TER
-        elif observations[0] == 0 and observations[1] > 0:
-            self.type = PointType.UAV'''

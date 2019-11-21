@@ -21,14 +21,17 @@ class Geometry:
     ''' Representation of a sparse reconstruction.
 
         Attributes:
-            cameras {int -> Camera}     :   cameras/images of the reconstruction
-            points2D {int -> Point2D}   :   image observations
-            points3D {int -> Point3D}   :   points in the object space (3D)
+            cameras {int -> Camera}         :   cameras/images of the reconstruction
+            points2D {int -> Point2D}       :   image observations
+            points3D {int -> Point3D}       :   points in the object space (3D)
+            features {string -> [string]    :   computed and imported features for points3D, points2D and cameras
     '''
     def __init__(self):
         self.__cameras = {}
         self.__points3D = {}
         self.__points2D = {}
+        
+        self.__features = {'point2D' : [], 'point3D': [], 'camera' : []}
 
 
     ''' ************************************************ Import ************************************************ '''
@@ -186,7 +189,7 @@ class Geometry:
                 res ([{}])                      : list of observations with format {cam_id : int, kp_index : int, x : float, y : float }
         '''
         num_observations = int(observation_string[0])  
-        
+
         observations = []
         if filetype == 'out':
             for i in range(1, 4 * num_observations, 4):
@@ -201,20 +204,27 @@ class Geometry:
 
         return observations
 
-    def import_feature_points3D(self, name, features):
+    def import_feature(self, feature_type, feature_name, features):
         ''' Import an externally-computed feature for the given points3D.
 
             Attributes:
-                name (string)           :   name of the feature
-                features ({int -> _})   :   values of the features. {point3D_id -> feature_value}
+                feature_type (string)   :   type of the feature (point3D, point2D or camera feature)
+                feature_name (string)   :   name of the feature
+                features ({int -> _})   :   values of the features. {id -> feature_value}
         '''
         if len(features) == 0:
             logger.warning('Empty feature dictionary is passed')
             return      
-
-        for point3D_id, value in features.items():
-            self.__points3D[point3D_id].set_feature(name, value)
-        logger.info('Imported feature {} for {} points3D'.format(name, len(features)))
+   
+        self.__features[feature_type].append(feature_name)
+     
+        for id, value in features.items():
+            if feature_type == 'point3D':
+                self.__points3D[id].set_feature(feature_name, value)
+            else:
+                logger.critical('Only features for points3D are supported now')
+                exit(1)
+        logger.info('Imported {} feature: {} for {} elements'.format(feature_type, feature_name, len(features)))
 
 
     ''' ************************************************ Getters ************************************************ '''
@@ -228,7 +238,7 @@ class Geometry:
             return self.__points2D[p2D_id]
         else:
             logger.error('Point2D with id {} does not exist'.format(p2D_id))
-    
+
     def get_point3D(self, p3D_id):
         ''' Return the point3D with the given id.
 
@@ -249,8 +259,23 @@ class Geometry:
         if cam_id in self.__cameras and self.__cameras[cam_id]:
             return self.__cameras[cam_id]
         else:
-            logger.error('Camera with id {} does not exist'.format(cam_id)) 
+            logger.error('Camera with id {} does not exist'.format(cam_id))
 
+    def get_feature_names(self, feature_type):
+        ''' Return the feature names of the features that have been computed or imported for given type.
+
+            Attributes:
+                feature_type (string)   :   get the features of this type
+            
+            Return:
+                features [string]       :   features
+        '''
+        if type in self.__features.keys():
+            return self.__features[type].copy()
+        else:
+            logger.critical('Type {} is not a valid feature type'.format(type))
+            exit(1)
+    
 
     ''' ************************************************ Modifiers ************************************************ '''
     def remove_points3D(self, p3D_ids):
@@ -293,7 +318,8 @@ class Geometry:
             Attributes:
                 p2D_ids (list(int)) : ids of the point2D to remove
         '''
-        logger.error('Method not yet supported')
+        logger.critical('Method remove_point2D is not yet supported')
+        exit(1)
 
         '''for p2D_id in p2D_ids:
             p2D = self.__points2D[p2D_id]
@@ -345,7 +371,7 @@ class Geometry:
             projections_of_p3D[cam_id] = p3D_ik
 
         return projections_of_p3D
-   
+
     def undistort_p3D(self, p3D_xy, cam_id):
         ''' Apply radial and tangential correction to the coordinates of the point3D.
 
@@ -380,6 +406,9 @@ class Geometry:
         if len(self.__points3D) == 0:
             logger.critical('No points3D, no reprojection errors')
             exit(1)
+        
+        feature_name = 'mean_reprojection_error'
+        self.__features['point3D'].append(feature_name)
 
         for p3D_id, p3D in self.__points3D.items():
             p3D_projections = self.project_p3D(p3D_id, undistort=True)
@@ -400,7 +429,7 @@ class Geometry:
                 logger.debug('Reprojection error of P3D {} on cam {}: {}'.format(p3D_id, cam_id, err))
             
             p3D_mean_reprojection_error = p3D_mean_reprojection_error / len(p3D_projections)
-            self.__points3D[p3D_id].set_feature('mean_reprojection_error', p3D_mean_reprojection_error)
+            self.__points3D[p3D_id].set_feature(feature_name, p3D_mean_reprojection_error)
             logger.debug('Mean reprojection error of P3D {} is {}'.format(p3D_id, p3D_mean_reprojection_error))
         
         logger.info('Reprojection errors computed')
@@ -414,6 +443,9 @@ class Geometry:
         if len(self.__points3D) == 0:
             logger.critical('No points3D, no maximum intersection angles')
             exit(1)
+        
+        feature_name = 'max_intersec_angle'
+        self.__features['point3D'].append(feature_name)
     
         for p3D_id, p3D in self.__points3D.items():
             cams_seing_p3D = p3D.get_cameras_seing_me()
@@ -439,11 +471,11 @@ class Geometry:
                     arcoss_angles.append(dist_1_dist_2_arcoss_angle)
             
             max_angle = max(arcoss_angles)
-            self.__points3D[p3D_id].set_feature('max_intersec_angle', max_angle)
+            self.__points3D[p3D_id].set_feature(feature_name, max_angle)
             logger.debug('Max intersection angle for p3D {} is {}'.format(p3D_id, max_angle)) 
 
         logger.info('Maximum intersection angles computed')
-    
+
     def compute_multiplicity(self):
         ''' Compute the multiplicity (number of cameras seing the point) of all the points3D.
         '''
@@ -451,8 +483,11 @@ class Geometry:
             logger.critical('No points3D, no multiplicities')
             exit(1)
         
+        feature_name = 'multiplicity'
+        self.__features['point3D'].append(feature_name)
+        
         for _, p3D in self.__points3D.items():
-            p3D.set_feature('multiplicity', len(p3D.get_cameras_seing_me()))\
+            p3D.set_feature(feature_name, len(p3D.get_cameras_seing_me()))
         
         logger.info('Multiplicities computed')
 
@@ -469,7 +504,6 @@ class Geometry:
         Return:
             result (float)  :   Normalised value 
         '''
-
         result = ((((value - min) * (1 - 0)) / float(max - min)))  
         return result
 
@@ -483,7 +517,7 @@ class Geometry:
         '''
         x = (2*(value - mean)) / std
         return 1 / (1 + np.exp(-x))
-    
+
     def compute_feature_statistics(self, features, ids_to_exclude=None):
         ''' Compute feature statistics of all the points3D or of a specif set (when ids_to_exclude is specified)
 
@@ -495,18 +529,27 @@ class Geometry:
                 feature_statistics ({string ->  
                     {string -> float}})         :   min, max, mean, median and std of each statistics 
                                                     {'feature' -> {'stat' -> float}} where 'stat' is 
-                                                    ['min', 'max', 'mean', 'median', 'std']          
+                                                    ['min', 'max', 'mean', 'median', 'std', '5th', '95th']          
         '''
-        feature_statistics = {}
+        feature_statistics = dict.fromkeys(features)
+        for feature in features:
+            feature_statistics[feature] = {}
+
         if ids_to_exclude:
             p3Ds_to_consider = [p3D for p3D_id, p3D in self.__points3D.items() if p3D_id not in ids_to_exclude]
         else:
             p3Ds_to_consider = [p3D for _, p3D in self.__points3D.items()]
 
         for feature in features:
-            if feature_statistics[feature] == None:
-                feature_statistics[feature] = {}
-            #feature_statistics[feature]['min'] = np.min([p.features])
+            feature_statistics[feature]['min'] = np.min([p3D.get_feature(feature) for p3D in p3Ds_to_consider])
+            feature_statistics[feature]['mean'] = np.mean([p3D.get_feature(feature) for p3D in p3Ds_to_consider])
+            feature_statistics[feature]['std'] = np.std([p3D.get_feature(feature) for p3D in p3Ds_to_consider])
+            feature_statistics[feature]['median'] = np.median([p3D.get_feature(feature) for p3D in p3Ds_to_consider])
+            feature_statistics[feature]['max'] = np.max([p3D.get_feature(feature) for p3D in p3Ds_to_consider])
+            feature_statistics[feature]['5th'] = np.percentile([p3D.get_feature(feature) for p3D in p3Ds_to_consider], 5)
+            feature_statistics[feature]['95th'] = np.percentile([p3D.get_feature(feature) for p3D in p3Ds_to_consider], 95)
+
+        return feature_statistics
 
 
     ''' ************************************************ Export ************************************************ '''
@@ -522,16 +565,21 @@ class Geometry:
            return
         
         try:
+            features_names = self.get_feature_names('points3D')
             with open(os.path.join(folder, 'pwf.txt'), 'w') as f_out:
-                f_out.write('#id x y z reprojection_error multiplicity max_angle\n')
+                f_out.write('#id x y z {}reprojection_error multiplicity max_angle\n'.format(' '.join(features_names)))
 
                 for p3D_id, p3D in self.__points3D.items():
-                    f_out.write('{} {} {} {} {}\n'.format(p3D_id, 
+                    f_out.write('{} {}'.format(p3D_id, p3D.get_coordinates_as_string()))
+                    for feature_name in features_names:
+                        f_out.write(' {}'.format(p3D.get_feature(feature_name)))
+                    f_out.write('\n')
+                    '''f_out.write('{} {} {} {} {}\n'.format(p3D_id, 
                         p3D.get_coordinates_as_string(), 
                         p3D.get_feature('mean_reprojection_error'),
                         p3D.get_feature('multiplicity'),
                         p3D.get_feature('max_intersec_angle'))
-                    )
+                    )'''
         except IOError:
             logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))
             exit(1)
