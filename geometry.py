@@ -71,7 +71,7 @@ class Geometry:
         if format != GeometrySettings.InstriscsFormatType.OPENCV and format != GeometrySettings.InstriscsFormatType.METASHAPE:
             logger.critical('Unknown instrinsic format')
             exit(1)
-       
+
         try:
             with open (filepath, 'r') as f:
                 file_lines = f.readlines()
@@ -83,7 +83,7 @@ class Geometry:
             exit(1)
 
         for line in file_lines: 
-            tokens = line.strip().split(' ')
+            tokens = line.replace('\t', ' ').strip().split(' ')
             if len(tokens) < 11:
                 logger.critical('Invalid instrinsic file format found at line {}. ' \
                     'Supported file format: <cam_id> <f> <cx> <cy> <k1> <k2> <k3> <p1> <p2> <width> <height>'.format(line))
