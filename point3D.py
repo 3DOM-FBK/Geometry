@@ -75,6 +75,11 @@ class Point3D:
 
 
     ''' ************************************************ Getters ************************************************ '''
+    def get_id(self):
+        ''' Return the id of the point3D.
+        '''
+        return self.__id
+        
     def get_coordinates(self, homogeneous = False):
         ''' Return the 3D coordinates of the point3D.
 
@@ -90,7 +95,7 @@ class Point3D:
             return np.copy(self.__xyz)
 
     def get_coordinates_as_string(self):
-        ''' Return the 3D cordinates as a string "x y z"
+        ''' Return the 3D cordinates as a string "x y z".
 
             Return
                 xyz (string)    :   coordinates as string

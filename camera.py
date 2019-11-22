@@ -137,7 +137,7 @@ class Camera:
     ''' ************************************************ Getters ************************************************ '''
     def get_id(self):
         return self.__id
-    
+
     def get_image_resolution(self):
         ''' Return image resolution (width and height).
 
@@ -148,7 +148,7 @@ class Camera:
             logger.critical('Image resolution not set')
             exit(1)
         return self.__intrinsics['width'], self.__intrinsics['height']
-    
+
     def get_camera_matrix_opencv(self):
         ''' Return a camera matrix with the instrinsic parameters using opencv format
 
@@ -167,7 +167,7 @@ class Camera:
                 [0, self.__intrinsics['f'], self.__intrinsics['cy']], 
                 [0, 0, 1]
             ], dtype=np.float)
-    
+
     def get_radial_distortion_params(self):
         ''' Return radial distortion parameters.
 
@@ -179,7 +179,7 @@ class Camera:
         else:
             logger.critical('Radial distortion parameters are not set')
             exit(1)
-    
+
     def get_tangential_distortion_params(self):
         ''' Return tangential distortion parameters
 
@@ -196,7 +196,7 @@ class Camera:
         ''' Returns the instrinsic distortion attributes in a distortion vector following the conventions of opencv
         '''
         return np.array([self.__intrinsics['k1'], self.__intrinsics['k2']], dtype=np.float)
-    
+
     def get_rotation_matrix(self, format):
         ''' Return the rotation matrix in the specified format
 
@@ -214,7 +214,7 @@ class Camera:
         else:
             logger.critical('{} is an invalid rotation matrix format'.format(format))
             exit(1)
-    
+
     def get_translation_vector(self, format):
         ''' Return the translation vector in the specified format
 

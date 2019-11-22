@@ -249,6 +249,11 @@ class Geometry:
             return self.__points3D[p3D_id]
         else:
             logger.error('Point3D with id {} does not exist'.format(p3D_id))
+    
+    def get_number_of_points3D(self):
+        ''' Return the number of points3D in the reconstruction
+        '''
+        return len(self.__points3D)
 
     def get_camera(self, cam_id):
         ''' Return the camera with the given id.
@@ -270,10 +275,10 @@ class Geometry:
             Return:
                 features [string]       :   features
         '''
-        if type in self.__features.keys():
-            return self.__features[type].copy()
+        if feature_type in self.__features.keys():
+            return self.__features[feature_type].copy()
         else:
-            logger.critical('Type {} is not a valid feature type'.format(type))
+            logger.critical('Type {} is not a valid feature type'.format(feature_type))
             exit(1)
     
 
@@ -434,7 +439,7 @@ class Geometry:
         
         logger.info('Reprojection errors computed')
 
-    def compute_max_intersection_angle(self, in_degree=False):
+    def compute_max_intersection_angles(self, in_degree=False):
         ''' Compute the maximum intersection angle of all the points3D.
 
             Attributes:
@@ -476,8 +481,8 @@ class Geometry:
 
         logger.info('Maximum intersection angles computed')
 
-    def compute_multiplicity(self):
-        ''' Compute the multiplicity (number of cameras seing the point) of all the points3D.
+    def compute_multiplicities (self):
+        ''' Compute the multiplicity (number of cameras seing each point3D).
         '''
         if len(self.__points3D) == 0:
             logger.critical('No points3D, no multiplicities')
@@ -493,31 +498,6 @@ class Geometry:
 
 
     ''' ************************************************ Statistic ************************************************ '''
-    def feature_scaling_normalisation(self, value, min, max):
-        ''' Normalise a given value between 0 and 1 using the feature scaling method
-        
-        Args:
-            value (float)   :   value to normalise.
-            min (float)     :   minimum value in the data.
-            max (float)     :   maximum value in the data.
-        
-        Return:
-            result (float)  :   Normalised value 
-        '''
-        result = ((((value - min) * (1 - 0)) / float(max - min)))  
-        return result
-
-    def logistic_normalisation(self, value, mean, std):
-        ''' Normalise a value between 0 and 1 using a logistic function (Mauro version)
-
-        Args:
-            value (float)   :   value to normalise.
-            mean (float)    :   mean of the data
-            std (float)     :   standard deviation of the data 
-        '''
-        x = (2*(value - mean)) / std
-        return 1 / (1 + np.exp(-x))
-
     def compute_feature_statistics(self, features, ids_to_exclude=None):
         ''' Compute feature statistics of all the points3D or of a specif set (when ids_to_exclude is specified)
 
@@ -565,21 +545,15 @@ class Geometry:
            return
         
         try:
-            features_names = self.get_feature_names('points3D')
+            features_names = self.get_feature_names('point3D')
             with open(os.path.join(folder, 'pwf.txt'), 'w') as f_out:
-                f_out.write('#id x y z {}reprojection_error multiplicity max_angle\n'.format(' '.join(features_names)))
+                f_out.write('#id x y z {}\n'.format(' '.join(features_names)))
 
                 for p3D_id, p3D in self.__points3D.items():
                     f_out.write('{} {}'.format(p3D_id, p3D.get_coordinates_as_string()))
                     for feature_name in features_names:
                         f_out.write(' {}'.format(p3D.get_feature(feature_name)))
                     f_out.write('\n')
-                    '''f_out.write('{} {} {} {} {}\n'.format(p3D_id, 
-                        p3D.get_coordinates_as_string(), 
-                        p3D.get_feature('mean_reprojection_error'),
-                        p3D.get_feature('multiplicity'),
-                        p3D.get_feature('max_intersec_angle'))
-                    )'''
         except IOError:
             logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))
             exit(1)
