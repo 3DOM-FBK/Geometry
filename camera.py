@@ -167,6 +167,17 @@ class Camera:
                 [0, self.__intrinsics['f'], self.__intrinsics['cy']], 
                 [0, 0, 1]
             ], dtype=np.float)
+    
+    def get_focal(self):
+        ''' Return the focal lenght.
+
+            Return:
+                _ (float)   : focal length in pixels
+        '''
+        if not self.__intrinsics['f']:
+            logger.critical('Camera {} has not focal length'.format(self.__id))
+            exit(1)
+        return self.__intrinsics['f']
 
     def get_radial_distortion_params(self):
         ''' Return radial distortion parameters.

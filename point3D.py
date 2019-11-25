@@ -128,6 +128,14 @@ class Point3D:
             logger.critical('Camera id {} not in the observations of p3D with id: {}'.format(cam_id, self.__id))
         
         return self.__observations[cam_id] 
+    
+    def get_color(self):
+        ''' Return the point3D color as RGB values.
+
+            Return:
+                _ (numpy.array) :   red, green and blue components. 1x3 shape.
+        ''' 
+        return np.copy(self.__rgb)
 
     def get_feature(self, feature):
         ''' Get a generic feature of the point3D.

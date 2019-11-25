@@ -59,7 +59,7 @@ class Point2D:
 
 
     ''' ************************************************ Getters ************************************************ '''
-    def get_coordinates(self, homogenous = False):
+    def get_coordinates(self, homogenous=False):
         ''' Return the image coordinates (x,y).
 
             Attributes:
@@ -70,6 +70,14 @@ class Point2D:
         '''
         return np.copy(self.__xy)
     
+    def get_keypoint_index(self):
+        ''' Return the keypoint index of this point2D in the source camera.
+
+            Return:
+                _ ((int,int)) :   keypoint index and camera id.
+        '''
+        return self.__keypoint_index
+
     def get_point3D(self):
         ''' Return the corresponding point3D id.
 

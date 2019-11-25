@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 import numpy as np 
 from sys import path
@@ -59,7 +60,7 @@ class Geometry:
         ''' Load fx, fy, cx, cy, k1, k2, k3, p1, p2, width and height from a .txt file.  
             File format: <cam_id> <f> <cx> <cy> <k1> <k2> <k3> <p1> <p2> <width> <height>
             <cam_id> should be given considering the order of the cameras in the .out/.nvm files.
-            Values will be stored using the OPENCV format.
+            Values will be stored using the OPENCV format. Fx and fy are considered equal.
 
             Attributes:
                 filepath (string)               :   path to the file 
@@ -312,7 +313,7 @@ class Geometry:
             del self.__points3D[p3D_id]
             num_deleted_points['3D'] += 1
         
-        logger.info('Deleted {} 3D and {} 2D points'.format(num_deleted_points['3D'], num_deleted_points['2D']))
+        logger.info('Deleted {} points3D and {} points2D'.format(num_deleted_points['3D'], num_deleted_points['2D']))
 
     def remove_point2D(self, p2D_ids):
         ''' Remove the given points2D from the reconstruction. Not yet supported.
@@ -458,7 +459,7 @@ class Geometry:
             p3D_cams_distances = []
             for cam_id in cams_seing_p3D:           # Compute distance vector between p3D and the cameras seing it
                 camera = self.__cameras[cam_id]
-                camera_tranlsation = camera.get_translation_vector(GeometrySettings.TranslationVectorType.BUNDLER_OUT)      # TODO: check this, probably is wrong.
+                camera_tranlsation = camera.get_translation_vector(GeometrySettings.TranslationVectorType.BLOCK_EXCHANGE)
                 p3D_cams_distances.append(p3D.get_coordinates() - camera_tranlsation)
    
             arcoss_angles = []
@@ -543,7 +544,7 @@ class Geometry:
         if not os.path.exists(folder):
            logger.error('Impossible to export pwf.txt. Folder "{}" does not exist'.format(folder))
            return
-        
+
         try:
             features_names = self.get_feature_names('point3D')
             with open(os.path.join(folder, 'pwf.txt'), 'w') as f_out:
@@ -557,3 +558,69 @@ class Geometry:
         except IOError:
             logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))
             exit(1)
+
+    def export_reconstruction(self, folder, format, filename=None):
+        ''' Export the points2D, points2D and cameras in the given format.
+
+            Attributes:
+                folder (string)                     :   path to the output folder
+                format (SupportedOutputFileFormat)  :   format of the output file  
+                filename (string)                   :   name of the file (optional)
+        '''
+        if format == GeometrySettings.SupportedOutputFileFormat.OUT:
+            self.__export_out(folder, filename)
+        elif format == GeometrySettings.SupportedOutputFileFormat.NVM:
+            self.__export_nvm(folder, filename)
+        else:
+            logger.critical('Invalid output format. Supported values: out and nvm')
+            exit(1)
+
+    def __export_out(self, folder, filename):
+        ''' Export reconstruction in Bundler out format.
+
+            Attributes:
+                folder (string)     :   path to the output folder
+                filename (string)   :   name of the file (optional)
+        ''' 
+        if not filename:
+            filename = time.strftime('%Y%m%d-%H%M%S')
+        else:
+            try:
+                filename = filename.replace('.out', '')
+            except Exception:
+                pass
+        
+        with open(os.path.join(folder, '{}.out'.format(filename)), 'w') as f_out:
+            f_out.write('# Bundle file v0.3\n')          
+            f_out.write('{} {}\n'.format(len(self.__cameras), len(self.__points3D)))
+
+            for _, cam in self.__cameras.items():
+                f, (k1, k2, _) = cam.get_focal(), cam.get_radial_distortion_params()
+                f_out.write('{} {} {}\n'.format(f, k1, k2))
+
+                R = [str(np.asscalar(r)) for r in np.nditer(cam.get_rotation_matrix(GeometrySettings.RotationMatrixType.BUNDLER_OUT))]        # Convert np.matrix to list of strings
+                for r_index, r in enumerate(R):
+                    f_out.write('{}\n'.format(r)) if (r_index+1) % 3 == 0 else f_out.write('{} '.format(r))
+                
+                t = [str(np.asscalar(r)) for r in np.nditer(cam.get_translation_vector(GeometrySettings.TranslationVectorType.BUNDLER_OUT))]  # Convert np.matrix to list of strings
+                f_out.write('{}\n'.format(' '.join(t)))
+        
+            for _, p3D in self.__points3D.items():
+                xyz = [str(np.asscalar(v)) for v in np.nditer(p3D.get_coordinates())]          
+                f_out.write('{}\n'.format(' '.join(xyz)))
+
+                rgb = p3D.get_color() #[str(np.asscalar(v)) for v in np.nditer(p3D.get_color())]         
+                #f_out.write('{}\n'.format(' '.join(rgb)))   
+                f_out.write('{}\n'.format(rgb))
+
+                cam_seing_p3D = p3D.get_cameras_seing_me()
+                f_out.write('{} '.format(len(cam_seing_p3D)))
+                for cam_id in cam_seing_p3D:
+                    p2D = self.__points2D[p3D.get_observation(cam_id)]
+                    cam = self.__cameras[cam_id]
+                    xy = [str(np.asscalar(v)) for v in np.nditer(p2D.get_coordinates())] 
+                    f_out.write('{} {} {} '.format(cam_id, p2D.get_keypoint_index()[0], ' '.join(xy)))           
+
+    def __export_nvm(self, folder, filename):
+        logger.critical('Method not yet supported')
+        exit(1)

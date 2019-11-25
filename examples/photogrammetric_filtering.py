@@ -96,7 +96,7 @@ def compute_point3D_score(p3D, feature_stats):
         feature_stats['multiplicity']['std'])
     score += 1 - logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], 
         feature_stats['max_intersec_angle']['std'])
-    print('p3D_id:{} - score:{}'.format(p3D.get_id(), score))
+    print('p3D_id: {} - score: {}'.format(p3D.get_id(), score))
 
     if weight_by_multiplicity:
         return (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max']) * score
@@ -111,13 +111,16 @@ def filter_points3D(geometry):
     '''
     p3Ds_feature_names = geometry.get_feature_names('point3D')
     p3Ds_feature_stats = geometry.compute_feature_statistics(p3Ds_feature_names)
+    print(p3Ds_feature_stats)
 
     p3Ds_to_delete = []
     for p3D_id in range(0, geometry.get_number_of_points3D()):
         p3D = geometry.get_point3D(p3D_id)
         if compute_point3D_score(p3D, p3Ds_feature_stats) > filtering_threshold:
             p3Ds_to_delete.append(p3D_id)
-    logging.info('Filtering: deleted points3D {}'.format(len(p3Ds_to_delete)))
+
+    geometry.remove_points3D(p3Ds_to_delete)
+    logging.info('Filtering: deleted {} points3D'.format(len(p3Ds_to_delete)))
 
 
 def main():
@@ -127,7 +130,7 @@ def main():
     parser.add_argument('--intrinsics', help='Path to the file containing the full instrisic values of the cameras', required=True)
     parser.add_argument('--intrinsic_format', help='Format of the instrisic file', required=True)
     parser.add_argument('--sigma', help='Path to the sigma features file', required=True)
-    parser.add_argument('--threshold', help='Filtering equation delete threshold', type=float, required=True)
+    parser.add_argument('--threshold', help='Filtering equation delete threshold. Points3D with a score higher than this will be deleted.', type=float, required=True)
     parser.add_argument('--weight_by_multiplicity', help='Use multiplicity weighting in the filtering equation', type=bool, default=False)
     parser.add_argument('--debug', help='Run in debug mode', type=int, default=0)
     args = parser.parse_args()
@@ -142,7 +145,7 @@ def main():
     global weight_by_multiplicity, filtering_threshold
     weight_by_multiplicity = args.weight_by_multiplicity
     filtering_threshold = args.threshold
-    logging.info('Filtering params: use multiplicity as weigth: {}, filtering threshold: {}'.format(weight_by_multiplicity, filtering_threshold))
+    logging.info('Filtering params: multiplicity as weigth: {}, filtering threshold: {}'.format(weight_by_multiplicity, filtering_threshold))
 
     geometry = Geometry()
 
@@ -155,14 +158,17 @@ def main():
         logging.critical('Unknown intrinsic format. Supported values: [\'opencv\', \'metashape\']')
         exit(1)
 
-    geometry.compute_mean_reprojection_errors()
-    geometry.compute_multiplicities()
-    geometry.compute_max_intersection_angles()
-    import_sigma_features(args.sigma, geometry)
+    # geometry.compute_mean_reprojection_errors()
+    # geometry.compute_multiplicities()
+    # geometry.compute_max_intersection_angles(in_degree=True)
+    # import_sigma_features(args.sigma, geometry)
 
-    filter_points3D(geometry)
+    # print(geometry.get_number_of_points3D())
+    # filter_points3D(geometry)
+    # print(geometry.get_number_of_points3D())
 
     # geometry.export_points3D_xyz_and_features(args.output)
+    geometry.export_reconstruction(args.output, GeometrySettings.SupportedOutputFileFormat.OUT)
 
 
 if __name__ == '__main__':

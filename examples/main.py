@@ -41,8 +41,8 @@ def main():
             exit(1)
 
     geometry.compute_mean_reprojection_errors()
-    geometry.compute_multiplicity()
-    geometry.compute_max_intersection_angle(in_degree=True)
+    geometry.compute_multiplicities()
+    geometry.compute_max_intersection_angles(in_degree=True)
 
     geometry.export_points3D_xyz_and_features(args.output)
 

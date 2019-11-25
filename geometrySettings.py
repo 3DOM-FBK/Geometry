@@ -3,8 +3,13 @@ from enum import Enum
 class GeometrySettings:
     ''' Geometry static settings and format types
     '''
-    # Supported file formats
+    # Supported input file formats
     class SupportedInputFileType(Enum):
+        OUT = 0
+        NVM = 1
+
+    # Supported output file formats
+    class SupportedOutputFileFormat(Enum):
         OUT = 0
         NVM = 1
 
