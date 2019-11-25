@@ -609,9 +609,8 @@ class Geometry:
                 xyz = [str(np.asscalar(v)) for v in np.nditer(p3D.get_coordinates())]          
                 f_out.write('{}\n'.format(' '.join(xyz)))
 
-                rgb = p3D.get_color() #[str(np.asscalar(v)) for v in np.nditer(p3D.get_color())]         
-                #f_out.write('{}\n'.format(' '.join(rgb)))   
-                f_out.write('{}\n'.format(rgb))
+                rgb = [str(np.asscalar(v)) for v in np.nditer(p3D.get_color())]         
+                f_out.write('{}\n'.format(' '.join(rgb)))   
 
                 cam_seing_p3D = p3D.get_cameras_seing_me()
                 f_out.write('{} '.format(len(cam_seing_p3D)))

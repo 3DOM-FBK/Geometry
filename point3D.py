@@ -49,7 +49,7 @@ class Point3D:
         if not rgb.shape == (3,):
             logger.critical('{} is an invalid point3D rgb shape'.format(rgb.shape))
             exit(1)
-        self.__rgb == rgb
+        self.__rgb = rgb
 
     def set_observation(self, cam_id, p2D_id):
         ''' Set observation (camera and corresponding point2D).
