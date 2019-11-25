@@ -129,7 +129,7 @@ class Geometry:
             camera.set_rotation_matrix(R = np.matrix(cam_data['R'], dtype = np.float),                      # Set rotation matrix 
                 format = GeometrySettings.RotationMatrixType.BUNDLER_OUT)                 
                                     
-            camera.set_translation_vector(t = np.matrix(cam_data['cc'], dtype = np.float).reshape(-1,1),    # Set translation vector
+            camera.set_translation_vector(t = np.matrix(cam_data['t'], dtype = np.float).reshape(-1,1),     # Set the translation vector
                 format = GeometrySettings.TranslationVectorType.BUNDLER_OUT) 
             
             logger.debug('New {}'.format(camera))
