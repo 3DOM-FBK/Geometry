@@ -96,7 +96,7 @@ def compute_point3D_score(p3D, feature_stats):
         feature_stats['multiplicity']['std'])
     score += 1 - logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], 
         feature_stats['max_intersec_angle']['std'])
-    print('p3D_id: {} - score: {}'.format(p3D.get_id(), score))
+    logging.debug('P3D: {} score: {}'.format(p3D.get_id(), score))
 
     if weight_by_multiplicity:
         return (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max']) * score
@@ -158,16 +158,15 @@ def main():
         logging.critical('Unknown intrinsic format. Supported values: [\'opencv\', \'metashape\']')
         exit(1)
 
-    # geometry.compute_mean_reprojection_errors()
-    # geometry.compute_multiplicities()
-    # geometry.compute_max_intersection_angles(in_degree=True)
-    # import_sigma_features(args.sigma, geometry)
+    geometry.compute_mean_reprojection_errors()
+    geometry.compute_multiplicities()
+    geometry.compute_max_intersection_angles(in_degree=True)
+    import_sigma_features(args.sigma, geometry)
 
-    # print(geometry.get_number_of_points3D())
-    # filter_points3D(geometry)
-    # print(geometry.get_number_of_points3D())
+    geometry.export_points3D_xyz_and_features(args.output)
 
-    # geometry.export_points3D_xyz_and_features(args.output)
+    filter_points3D(geometry)
+    
     geometry.export_reconstruction(args.output, GeometrySettings.SupportedOutputFileFormat.OUT)
 
 

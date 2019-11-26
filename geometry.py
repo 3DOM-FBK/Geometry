@@ -340,11 +340,11 @@ class Geometry:
         ''' Get the projections of a point3D in all the observing cameras
 
             Attributes:
-                p3D_id (int)                :   id of the point3D
-                undistort (bool)            :   apply undistortion
+                p3D_id (int)                                    :   id of the point3D
+                undistort (bool)                                :   apply undistortion (optional)
             
             Return:
-                projections_of_p3D ({})     :  projections (2D coordinates) of the point3D. Key: cam_id (int), value: 2D projection [np.matrix(2,1)]
+                projections_of_p3D ({int -> np.matrix(2,1)})     :  image coordinates of the point3D {cam_id -> projection} 
         '''
         if p3D_id not in self.__points3D:
             logger.critical('Point3D with id: {} does not exist'.format(p3D_id))
@@ -358,7 +358,7 @@ class Geometry:
             cam_seing_p3D = self.__cameras[cam_id]                                                     
 
             R_cw = cam_seing_p3D.get_rotation_matrix(GeometrySettings.RotationMatrixType.BLOCK_EXCHANGE)           # Rotation of the camera in world coordinate system
-            t_cw = cam_seing_p3D.get_translation_vector(GeometrySettings.TranslationVectorType.BLOCK_EXCHANGE)     # Translation of the camera in world coordinate system
+            t_cw = cam_seing_p3D.get_translation_vector(GeometrySettings.TranslationVectorType.BLOCK_EXCHANGE)     # Camera center in world coordinate system
             K = cam_seing_p3D.get_camera_matrix_opencv()
             
             t_wc = (-R_cw).dot(t_cw)                        # Translation of the world coordinate system wrt the camera
@@ -583,14 +583,12 @@ class Geometry:
                 filename (string)   :   name of the file (optional)
         ''' 
         if not filename:
-            filename = time.strftime('%Y%m%d-%H%M%S')
+            filename = time.strftime('%Y%m%d-%H%M%S.out')
         else:
-            try:
-                filename = filename.replace('.out', '')
-            except Exception:
-                pass
-        
-        with open(os.path.join(folder, '{}.out'.format(filename)), 'w') as f_out:
+            if '.out' not in filename:
+                filename = filename + '.out'
+
+        with open(os.path.join(folder, filename), 'w') as f_out:
             f_out.write('# Bundle file v0.3\n')          
             f_out.write('{} {}\n'.format(len(self.__cameras), len(self.__points3D)))
 
@@ -618,7 +616,8 @@ class Geometry:
                     p2D = self.__points2D[p3D.get_observation(cam_id)]
                     cam = self.__cameras[cam_id]
                     xy = [str(np.asscalar(v)) for v in np.nditer(p2D.get_coordinates())] 
-                    f_out.write('{} {} {} '.format(cam_id, p2D.get_keypoint_index()[0], ' '.join(xy)))           
+                    f_out.write('{} {} {} '.format(cam_id, p2D.get_keypoint_index()[0], ' '.join(xy)))      
+        logger.info('Reconstruction exported at location: {}'.format(os.path.join(folder, filename)))     
 
     def __export_nvm(self, folder, filename):
         logger.critical('Method not yet supported')
