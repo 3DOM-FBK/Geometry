@@ -116,8 +116,10 @@ def filter_points3D(geometry):
     p3Ds_to_delete = []
     for p3D_id in range(0, geometry.get_number_of_points3D()):
         p3D = geometry.get_point3D(p3D_id)
-        if compute_point3D_score(p3D, p3Ds_feature_stats) > filtering_threshold:
+        p3D_score =  compute_point3D_score(p3D, p3Ds_feature_stats)
+        if p3D_score > filtering_threshold:
             p3Ds_to_delete.append(p3D_id)
+            logging.info('Point3D {} deleted. Score: {}'.format(p3D_id, p3D_score))
 
     geometry.remove_points3D(p3Ds_to_delete)
     logging.info('Filtering: deleted {} points3D'.format(len(p3Ds_to_delete)))

@@ -105,7 +105,7 @@ class Geometry:
                 self.__cameras[cam_id].set_camera_center(cx = cx_opencv, cy = cy_opencv)
 
             logger.debug('Updated intrinsics: {}'.format(self.__cameras[cam_id]))
-        logger.info('Loaded full intrinsics of {} cameras'.format(len(file_lines)))
+        logger.info('Loaded full intrinsics of {} cameras from {} expecting {} format'.format(len(file_lines), filepath, format.name))
 
     def __load_out(self, filepath):
         ''' Load the content of a .out file
