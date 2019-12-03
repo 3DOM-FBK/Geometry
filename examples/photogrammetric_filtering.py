@@ -96,12 +96,12 @@ def compute_point3D_score(p3D, feature_stats):
         feature_stats['multiplicity']['std'])
     score += 1 - logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], 
         feature_stats['max_intersec_angle']['std'])
-    logging.debug('P3D: {} score: {}'.format(p3D.get_id(), score))
-
+    
     if weight_by_multiplicity:
-        return (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max']) * score
-    else:
-        return score
+        score = (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max']) * score
+    
+    logging.debug('P3D: {} score: {}'.format(p3D.get_id(), score))
+    return score
 
 def filter_points3D(geometry):
     ''' Apply photogrammetric filtering to the points3D (and corresponding point2D) of the given reconstruction.
