@@ -98,7 +98,7 @@ def compute_point3D_score(p3D, feature_stats):
         feature_stats['max_intersec_angle']['std'])
     
     if weight_by_multiplicity:
-        score = (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max']) * score
+        score = (1 - (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max'])) * score
     
     logging.debug('P3D: {} score: {}'.format(p3D.get_id(), score))
     return score
