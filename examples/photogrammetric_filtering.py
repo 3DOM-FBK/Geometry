@@ -11,12 +11,24 @@ from geometry import Geometry
 from geometrySettings import GeometrySettings
 
 # Global settings
-weight_by_multiplicity = False
-filtering_threshold = 0
+filtering_threshold = 0                                                     # Filtering treshold
+equation_id = None                                                          # Id of the filtering equation to use
+weight_id = None                                                            # Id of the weight factor to use
+equations_ids = {'0' : lambda re, mu, ma, s: re + (1-mu) + (1-ma) + s,      # Filtering equations
+            '1' : lambda re, ma, s: re + (1-ma) + s,
+            '2' : lambda re : re,
+            '3' : lambda ma : 1 - ma,
+            '4' : lambda mu : 1 - mu,
+            '5' : lambda s : s
+            }
+weight_ids = {'0' : lambda x: 1,                                   # Weight factors
+            '1' : lambda mu, mu_max : 1 - (mu / mu_max),
+            '2' : lambda mu, mu_95 : 1 - (mu / mu_95)
+            }
 
 ''' ************************************************ Import ************************************************ '''
 def import_sigma_features(path, geometry):
-    ''' Import in geometry the gamma feature exported by Metashape. File format: x y z std_x std_y std_z std.
+    ''' Import in geometry the sigma feature exported by Metashape. File format: x y z std_x std_y std_z std.
         First row is the header.
 
         Attributes:
@@ -89,19 +101,46 @@ def compute_point3D_score(p3D, feature_stats):
             score (float)                                       :   score of the given point3D
     '''
     score = 0
-    score += logistic_normalisation(p3D.get_feature('mean_reprojection_error'), feature_stats['mean_reprojection_error']['mean'], 
-        feature_stats['mean_reprojection_error']['std'])
-    score += logistic_normalisation(p3D.get_feature('sigma'), feature_stats['sigma']['mean'], feature_stats['sigma']['std'])
-    score += 1 - logistic_normalisation(p3D.get_feature('multiplicity'), feature_stats['multiplicity']['mean'], 
-        feature_stats['multiplicity']['std'])
-    score += 1 - logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], 
-        feature_stats['max_intersec_angle']['std'])
+    if equation_id == '0':
+        re_norm = logistic_normalisation(p3D.get_feature('mean_reprojection_error'), feature_stats['mean_reprojection_error']['mean'], feature_stats['mean_reprojection_error']['std'])
+        mu_norm = logistic_normalisation(p3D.get_feature('multiplicity'), feature_stats['multiplicity']['mean'], feature_stats['multiplicity']['std'])
+        ma_norm = logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], feature_stats['max_intersec_angle']['std'])
+        s_norm = logistic_normalisation(p3D.get_feature('sigma'), feature_stats['sigma']['mean'], feature_stats['sigma']['std'])
+        score = equations_ids[equation_id](re_norm, mu_norm, ma_norm, s_norm)
+    elif equation_id == '1':
+        re_norm = logistic_normalisation(p3D.get_feature('mean_reprojection_error'), feature_stats['mean_reprojection_error']['mean'], feature_stats['mean_reprojection_error']['std'])
+        ma_norm = logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], feature_stats['max_intersec_angle']['std'])
+        s_norm = logistic_normalisation(p3D.get_feature('sigma'), feature_stats['sigma']['mean'], feature_stats['sigma']['std'])
+        score = equations_ids[equation_id](re_norm, mu_norm, ma_norm, s_norm)
+    elif equation_id == '2':
+        re_norm = logistic_normalisation(p3D.get_feature('mean_reprojection_error'), feature_stats['mean_reprojection_error']['mean'], feature_stats['mean_reprojection_error']['std'])
+        score = equations_ids[equation_id](re_norm)
+    elif equation_id == '3':
+        ma_norm = logistic_normalisation(p3D.get_feature('max_intersec_angle'), feature_stats['max_intersec_angle']['mean'], feature_stats['max_intersec_angle']['std'])
+        score = equations_ids[equation_id](ma_norm)
+    elif equation_id == '4':
+        mu_norm = logistic_normalisation(p3D.get_feature('multiplicity'), feature_stats['multiplicity']['mean'], feature_stats['multiplicity']['std'])
+        score = equations_ids[equation_id](mu_norm)
+    elif equation_id == '5':
+        s_norm = logistic_normalisation(p3D.get_feature('sigma'), feature_stats['sigma']['mean'], feature_stats['sigma']['std'])
+        score = equations_ids[equation_id](s_norm)
+    else:
+        logging.critical('Unknown equation id {}'.format(equation_id))
+        exit(1)
     
-    if weight_by_multiplicity:
-        score = (1 - (p3D.get_feature('multiplicity') / feature_stats['multiplicity']['max'])) * score
-    
-    logging.debug('P3D: {} score: {}'.format(p3D.get_id(), score))
-    return score
+    final_score = 0
+    if weight_id == '0':
+        final_score = weight_ids[weight_id](1) * score
+    elif weight_id == '1':
+        final_score = weight_ids[weight_id](p3D.get_feature('multiplicity'), feature_stats['multiplicity']['max']) * score
+    elif weight_id == '2':
+        final_score = weight_ids[weight_id](p3D.get_feature('multiplicity'), feature_stats['multiplicity']['95th']) * score
+    else:
+        logging.critical('Unknown weight factor id {}'.format(weight_id))
+        exit(1)
+
+    logging.debug('P3D: {} score: {}'.format(p3D.get_id(), final_score))
+    return final_score
 
 def filter_points3D(geometry):
     ''' Apply photogrammetric filtering to the points3D (and corresponding point2D) of the given reconstruction.
@@ -116,7 +155,7 @@ def filter_points3D(geometry):
     p3Ds_to_delete = []
     for p3D_id in range(0, geometry.get_number_of_points3D()):
         p3D = geometry.get_point3D(p3D_id)
-        p3D_score =  compute_point3D_score(p3D, p3Ds_feature_stats)
+        p3D_score = compute_point3D_score(p3D, p3Ds_feature_stats)
         if p3D_score > filtering_threshold:
             p3Ds_to_delete.append(p3D_id)
             logging.info('Point3D {} deleted. Score: {}'.format(p3D_id, p3D_score))
@@ -126,14 +165,15 @@ def filter_points3D(geometry):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Photogrammetric filtering of sparse reconstructions')
+    parser = argparse.ArgumentParser(description='Photogrammetric filtering of sparse reconstructions.')
     parser.add_argument('--input', help='Path to the input file [.out/.nvm]', required=True)
     parser.add_argument('--output', help='Path to the output folder', required=True)
     parser.add_argument('--intrinsics', help='Path to the file containing the full instrisic values of the cameras', required=True)
     parser.add_argument('--intrinsic_format', help='Format of the instrisic file', required=True)
     parser.add_argument('--sigma', help='Path to the sigma features file', required=True)
     parser.add_argument('--threshold', help='Filtering equation delete threshold. Points3D with a score higher than this will be deleted.', type=float, required=True)
-    parser.add_argument('--weight_by_multiplicity', help='Use multiplicity weighting in the filtering equation', type=bool, default=False)
+    parser.add_argument('--eq', help='Filtering equation id', required=True)
+    parser.add_argument('--weight', help='Weight factor id', required=True)
     parser.add_argument('--debug', help='Run in debug mode', type=int, default=0)
     args = parser.parse_args()
 
@@ -144,10 +184,12 @@ def main():
     logging.basicConfig(format='%(levelname)-6s %(asctime)s:%(msecs)d [%(filename)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output," log.txt"), filemode='w', level=log_level)
 
-    global weight_by_multiplicity, filtering_threshold
-    weight_by_multiplicity = args.weight_by_multiplicity
+    global equation_id, weight_id, filtering_threshold
+    # weight_by_multiplicity = args.weight_by_multiplicity
     filtering_threshold = args.threshold
-    logging.info('Filtering params: multiplicity as weigth: {}, filtering threshold: {}'.format(weight_by_multiplicity, filtering_threshold))
+    equation_id = args.eq
+    weight_id = args.weight
+    logging.info('Filtering params: equation id: {}, weight id: {}, filtering threshold: {}'.format(equation_id, weight_id, filtering_threshold))
 
     geometry = Geometry()
 
