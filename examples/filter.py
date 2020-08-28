@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 import argparse
 import numpy as np
@@ -10,8 +11,8 @@ sys.path.insert(0, '../')
 from geometry import Geometry
 from geometrySettings import GeometrySettings
 
-# Global settings
-filtering_threshold = 0                                                     # Filtering treshold
+# Global variables
+filter_threshold = 0                                                        # Filter treshold
 equation_id = None                                                          # Id of the filtering equation to use
 weight_id = None                                                            # Id of the weight factor to use
 equations_ids = {'0' : lambda re, mu, ma, s: re + (1-mu) + (1-ma) + s,      # Filtering equations
@@ -25,6 +26,7 @@ weight_ids = {'0' : lambda x: 1,                                   # Weight fact
             '1' : lambda mu, mu_max : 1 - (mu / mu_max),
             '2' : lambda mu, mu_95 : 1 - (mu / mu_95)
             }
+
 
 ''' ************************************************ Import ************************************************ '''
 def import_sigma_features(path, geometry):
@@ -60,6 +62,44 @@ def import_sigma_features(path, geometry):
 
     geometry.import_feature('point3D', 'sigma', sigma_features)
 
+def import_photo_features(path, geometry):
+    ''' Import reprojection error, multiplicity and max intersection angle computed by "compute_features.py".
+        File format: id x y z mean_reprojection_error multiplicity max_intersec_angle
+        Assume point order: same as in the .out/.nvm file
+
+        Attributes:
+            path (string)           :   path to the file generated with "compute_features.py"
+            geometry (Geometry)     :   reference to the geometry instance
+    '''
+    if not os.path.isfile(path):
+        logging.critical('File "{}" does not exist'.format(path))
+        exit(1)
+    
+    repr_errs = {}                                                      # Reprojection errors
+    mults = {}                                                          # Multiplicities
+    max_angles = {}                                                     # Max intersection angles
+    
+    try:
+        with open(path, 'r') as f:
+            lines = f.readlines()
+        
+        for p3D_id, line in enumerate(lines[1:]):
+            tokens = line.replace('\t', ' ').strip().split(' ')
+            if len(tokens) < 7:
+                logging.critical('Invalid file format. Expected: <id> <x> <y> <z> '\
+                    '<mean_reprojection_error> <multiplicity> <max_intersec_angle>')
+                exit(1)
+            repr_errs[p3D_id] = float(tokens[4])
+            mults[p3D_id] = float(tokens[5])
+            max_angles[p3D_id] = float(tokens[6])                       
+    except IOError:
+        logging.critical('File "{}" is not readable'.format(path))
+        exit(1)
+    
+    geometry.import_feature('point3D', 'mean_reprojection_error', repr_errs)
+    geometry.import_feature('point3D', 'multiplicity', mults)
+    geometry.import_feature('point3D', 'max_intersec_angle', max_angles)
+
 
 ''' ************************************************ Statistics ************************************************ '''
 def feature_scaling_normalisation(value, min, max):
@@ -86,6 +126,27 @@ def logistic_normalisation(value, mean, std):
     '''
     x = (2*(value - mean)) / std
     return 1 / (1 + np.exp(-x))
+
+def compute_filter_threshold(geometry):
+    # Compute stats of the features ('min', 'max', 'mean', 'median', 'std', '5th', '95th')
+    p3Ds_feature_names = geometry.get_feature_names('point3D')
+    p3Ds_feature_stats = geometry.compute_feature_statistics(p3Ds_feature_names)
+    logging.info("Feature statistics: {}".format(json.dumps(p3Ds_feature_stats, indent=4, sort_keys=True)))
+
+    accum = 0.0
+    for f_name in p3Ds_feature_names:
+        if f_name == 'max_intersec_angle':
+             accum += 1 - logistic_normalisation(p3Ds_feature_stats[f_name]['median'], 
+                                        p3Ds_feature_stats[f_name]['mean'], 
+                                        p3Ds_feature_stats[f_name]['std']   
+            )
+        else:
+            accum += logistic_normalisation(p3Ds_feature_stats[f_name]['median'], 
+                                            p3Ds_feature_stats[f_name]['mean'], 
+                                            p3Ds_feature_stats[f_name]['std']   
+            )
+    
+    return accum
 
 
 ''' ************************************************ Filtering ************************************************ '''
@@ -150,28 +211,27 @@ def filter_points3D(geometry):
     '''
     p3Ds_feature_names = geometry.get_feature_names('point3D')
     p3Ds_feature_stats = geometry.compute_feature_statistics(p3Ds_feature_names)
-    print(p3Ds_feature_stats)
 
     p3Ds_to_delete = []
     for p3D_id in range(0, geometry.get_number_of_points3D()):
         p3D = geometry.get_point3D(p3D_id)
         p3D_score = compute_point3D_score(p3D, p3Ds_feature_stats)
-        if p3D_score > filtering_threshold:
+        if p3D_score > filter_threshold:
             p3Ds_to_delete.append(p3D_id)
-            logging.info('Point3D {} deleted. Score: {}'.format(p3D_id, p3D_score))
+            logging.debug('Point3D {} deleted. Score: {}'.format(p3D_id, p3D_score))
 
     geometry.remove_points3D(p3Ds_to_delete)
-    logging.info('Filtering: deleted {} points3D'.format(len(p3Ds_to_delete)))
+    logging.info('Deleted {} points3D'.format(len(p3Ds_to_delete)))
 
 
 def main():
     parser = argparse.ArgumentParser(description='Photogrammetric filtering of sparse reconstructions.')
     parser.add_argument('--input', help='Path to the input file [.out/.nvm]', required=True)
     parser.add_argument('--output', help='Path to the output folder', required=True)
-    parser.add_argument('--intrinsics', help='Path to the file containing the full instrisic values of the cameras', required=True)
-    parser.add_argument('--intrinsic_format', help='Format of the instrisic file', required=True)
-    parser.add_argument('--sigma', help='Path to the sigma features file', required=True)
-    parser.add_argument('--threshold', help='Filtering equation delete threshold. Points3D with a score higher than this will be deleted.', type=float, required=True)
+    parser.add_argument('--intrinsics', help='Path to the file containing the full instrisic values of the cameras', required=True)                                         
+    parser.add_argument('--intrinsic_format', help='Format of the instrisic file', required=True)                                                                           
+    parser.add_argument('--features', help='Path to the file containing the photogrammetric features', required=True)
+    parser.add_argument('--sigma', help='Path to the file containing the sigma features', required=True)
     parser.add_argument('--eq', help='Filtering equation id', required=True)
     parser.add_argument('--weight', help='Weight factor id', required=True)
     parser.add_argument('--debug', help='Run in debug mode', type=int, default=0)
@@ -183,17 +243,18 @@ def main():
         log_level = logging.INFO
     logging.basicConfig(format='%(levelname)-6s %(asctime)s:%(msecs)d [%(filename)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output," log.txt"), filemode='w', level=log_level)
-
-    global equation_id, weight_id, filtering_threshold
-    # weight_by_multiplicity = args.weight_by_multiplicity
-    filtering_threshold = args.threshold
-    equation_id = args.eq
-    weight_id = args.weight
-    logging.info('Filtering params: equation id: {}, weight id: {}, filtering threshold: {}'.format(equation_id, weight_id, filtering_threshold))
+    
+    # Get id of the filter weights and equations
+    global equation_id, weight_id
+    equation_id, weight_id = args.eq, args.weight
+    logging.info('Filtering params: equation id: {}, weight id: {}'.format(equation_id, weight_id))
 
     geometry = Geometry()
 
+    # Load reconstruction
     geometry.load_reconstruction(args.input)
+
+    # Load camera intrinsics (per se not needed, but import them to avoid errors when generating the filtered .out)
     if args.intrinsic_format.lower() == 'metashape':
         geometry.load_full_camera_intrinsics(args.intrinsics, GeometrySettings.InstriscsFormatType.METASHAPE)
     elif args.intrinsic_format.lower() == 'opencv':
@@ -202,16 +263,21 @@ def main():
         logging.critical('Unknown intrinsic format. Supported values: [\'opencv\', \'metashape\']')
         exit(1)
 
-    geometry.compute_mean_reprojection_errors()
-    geometry.compute_multiplicities()
-    geometry.compute_max_intersection_angles(in_degree=True)
+    # Import photogrammetric and sigma features
+    import_photo_features(args.features, geometry)
     import_sigma_features(args.sigma, geometry)
 
-    geometry.export_points3D_xyz_and_features(args.output)
+    # Compute filter theshold
+    global filter_threshold
+    filter_threshold = compute_filter_threshold(geometry)
+    logging.info("Computed filter threshold: {}".format(filter_threshold))
 
+    # Filter the points
     filter_points3D(geometry)
     
-    geometry.export_reconstruction(args.output, GeometrySettings.SupportedOutputFileFormat.OUT)
+    # Export filtered dataset in .out format
+    out_path = geometry.export_reconstruction(args.output, GeometrySettings.SupportedOutputFileFormat.OUT)
+    logging.info('Filtered reconstruction saved in {}'.format(os.path.join(out_path)))
 
 
 if __name__ == '__main__':

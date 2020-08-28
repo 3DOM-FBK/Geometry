@@ -539,15 +539,15 @@ class Geometry:
             Format <p3D_id> <x> <y> <z> <reprojection_error> <multiplicity> <max_intersection_angle>
 
             Attributes:
-                folder (string) :   path to the output folder where "pwf.txt" will be created
+                folder (string) :   path to the output folder where "features.txt" will be created
         ''' 
         if not os.path.exists(folder):
-           logger.error('Impossible to export pwf.txt. Folder "{}" does not exist'.format(folder))
+           logger.error('Impossible to export "features.txt". Folder "{}" does not exist'.format(folder))
            return
 
         try:
             features_names = self.get_feature_names('point3D')
-            with open(os.path.join(folder, 'pwf.txt'), 'w') as f_out:
+            with open(os.path.join(folder, 'features.txt'), 'w') as f_out:
                 f_out.write('#id x y z {}\n'.format(' '.join(features_names)))
 
                 for p3D_id, p3D in self.__points3D.items():
@@ -556,7 +556,7 @@ class Geometry:
                         f_out.write(' {}'.format(p3D.get_feature(feature_name)))
                     f_out.write('\n')
         except IOError:
-            logger.error('Cannot create file {}"'.format(os.path.join(folder, 'pwf.txt')))
+            logger.error('Cannot create file {}"'.format(os.path.join(folder, 'features.txt')))
             exit(1)
 
     def export_reconstruction(self, folder, format, filename=None):
@@ -568,9 +568,9 @@ class Geometry:
                 filename (string)                   :   name of the file (optional)
         '''
         if format == GeometrySettings.SupportedOutputFileFormat.OUT:
-            self.__export_out(folder, filename)
+            return self.__export_out(folder, filename)
         elif format == GeometrySettings.SupportedOutputFileFormat.NVM:
-            self.__export_nvm(folder, filename)
+            return self.__export_nvm(folder, filename)
         else:
             logger.critical('Invalid output format. Supported values: out and nvm')
             exit(1)
@@ -581,6 +581,9 @@ class Geometry:
             Attributes:
                 folder (string)     :   path to the output folder
                 filename (string)   :   name of the file (optional)
+            
+            Return:
+                out_path (string)   :   filepath to the generated .out
         ''' 
         if not filename:
             filename = time.strftime('%Y%m%d-%H%M%S.out')
@@ -616,8 +619,9 @@ class Geometry:
                     p2D = self.__points2D[p3D.get_observation(cam_id)]
                     cam = self.__cameras[cam_id]
                     xy = [str(np.asscalar(v)) for v in np.nditer(p2D.get_coordinates())] 
-                    f_out.write('{} {} {} '.format(cam_id, p2D.get_keypoint_index()[0], ' '.join(xy)))      
-        logger.info('Reconstruction exported at location: {}'.format(os.path.join(folder, filename)))     
+                    f_out.write('{} {} {} '.format(cam_id, p2D.get_keypoint_index()[0], ' '.join(xy)))  
+
+        return os.path.join(folder, filename)    
 
     def __export_nvm(self, folder, filename):
         logger.critical('Method not yet supported')
