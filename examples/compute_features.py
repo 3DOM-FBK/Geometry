@@ -23,7 +23,7 @@ def main():
     else:
         log_level = logging.INFO
     logging.basicConfig(format='%(levelname)-6s %(asctime)s:%(msecs)d [%(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output," log.txt"), filemode='w', level=log_level)
+        datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output,"log_compute_features.txt"), filemode='w', level=log_level)
 
     geometry = Geometry()                                                                                                                                                                                 
     
@@ -46,7 +46,7 @@ def main():
 
     # Export features
     geometry.export_points3D_xyz_and_features(args.output)
-    logging.info('Photogrammetric features exported in {}/features.txt'.format(os.path.join(args.output)))
+    logging.info('Photogrammetric features exported in {}'.format(os.path.join(args.output, "features.txt")))
 
 
 if __name__ == '__main__':

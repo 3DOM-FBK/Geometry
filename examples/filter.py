@@ -242,7 +242,7 @@ def main():
     else:
         log_level = logging.INFO
     logging.basicConfig(format='%(levelname)-6s %(asctime)s:%(msecs)d [%(filename)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output," log.txt"), filemode='w', level=log_level)
+        datefmt='%Y-%m-%d:%H:%M:%S', filename=os.path.join(args.output, "log_filter.txt"), filemode='w', level=log_level)
     
     # Get id of the filter weights and equations
     global equation_id, weight_id
