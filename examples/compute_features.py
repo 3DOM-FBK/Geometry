@@ -1,9 +1,10 @@
 import os
 import logging
-from sys import path
 from argparse import ArgumentParser
 
 # Path to geometry library
+from sys import path
+path.insert(0, './')
 path.insert(0, '../')
 
 from geometry import Geometry

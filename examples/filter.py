@@ -1,12 +1,13 @@
 import os
-import sys
 import json
 import logging
 import argparse
 import numpy as np
 
 # Path to geometry library
-sys.path.insert(0, '../')
+from sys import path
+path.insert(0, './')
+path.insert(0, '../')
 
 from geometry import Geometry
 from geometrySettings import GeometrySettings
@@ -232,8 +233,8 @@ def main():
     parser.add_argument('--intrinsic_format', help='Format of the instrisic file', required=True)                                                                           
     parser.add_argument('--features', help='Path to the file containing the photogrammetric features', required=True)
     parser.add_argument('--sigma', help='Path to the file containing the sigma features', required=True)
-    parser.add_argument('--eq', help='Filtering equation id', required=True)
-    parser.add_argument('--weight', help='Weight factor id', required=True)
+    parser.add_argument('--eq', help='Filtering equation id', default='0')
+    parser.add_argument('--weight', help='Weight factor id', default='1')
     parser.add_argument('--debug', help='Run in debug mode', type=int, default=0)
     args = parser.parse_args()
 
